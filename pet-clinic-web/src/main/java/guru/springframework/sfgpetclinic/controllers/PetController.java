@@ -13,9 +13,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.validation.Valid;
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * Created by jt on 9/22/18.
@@ -51,28 +53,36 @@ public class PetController {
         dataBinder.setDisallowedFields("id");
     }
 
+    @ModelAttribute("pet")
+    public Pet loadPetForOwner(Map<String, Object> model ) {
+         Owner owner = (Owner) model.get("owner");
+        Pet p = new Pet();
+        owner.getPets().add(p);
+        p.setOwner(owner);
+        return  p;
+    }
+
     @GetMapping("/pets/new")
-    public String initCreationForm(Owner owner, Model model) {
-        Pet pet = new Pet();
-        owner.getPets().add(pet);
-        pet.setOwner(owner);
-        model.addAttribute("pet", pet);
+    public String initCreationForm(Model model) {
+        System.out.println("initCreationForm");
         return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
     }
 
     @PostMapping("/pets/new")
-    public String processCreationForm(Owner owner, @Valid Pet pet, BindingResult result, ModelMap model) {
-        if (StringUtils.hasLength(pet.getName()) && pet.isNew() && owner.getPet(pet.getName(), true) != null){
+    public String processCreationForm( @ModelAttribute("pet") Pet pet, ModelMap model, BindingResult result) {
+
+
+        if (StringUtils.hasLength(pet.getName()) && pet.isNew() && pet.getOwner().getPet(pet.getName(), true) != null){
             result.rejectValue("name", "duplicate", "already exists");
         }
-        owner.getPets().add(pet);
-        if (result.hasErrors()) {
+
+      if (result.hasErrors()) {
             model.put("pet", pet);
             return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
         } else {
             petService.save(pet);
 
-            return "redirect:/owners/" + owner.getId();
+            return "redirect:/owners/" + pet.getOwner().getId();
         }
     }
 
